@@ -66,32 +66,49 @@ export default async function seedDemoData({ container }: ExecArgs) {
           },
         ],
         default_sales_channel_id: defaultSalesChannel[0].id,
+        name: "VinTel Store",
       },
     },
   });
   logger.info("Seeding region data...");
-  const { result: regionResult } = await createRegionsWorkflow(container).run({
-    input: {
-      regions: [
-        {
-          name: "Europe",
-          currency_code: "eur",
-          countries,
-          payment_providers: ["pp_system_default"],
-        },
-      ],
-    },
-  });
-  const region = regionResult[0];
+  let region;
+  try {
+    const { result: regionResult } = await createRegionsWorkflow(container).run({
+      input: {
+        regions: [
+          {
+            name: "Europe",
+            currency_code: "eur",
+            countries,
+            payment_providers: ["pp_system_default"],
+          },
+        ],
+      },
+    });
+    region = regionResult[0];
+  } catch (err) {
+    // If regions already exist, reuse the existing one instead of failing
+    const regionModuleService = container.resolve(Modules.REGION);
+    const existing = await regionModuleService.listRegions({ name: "Europe" });
+    if (!existing.length) {
+      throw err;
+    }
+    region = existing[0];
+  }
   logger.info("Finished seeding regions.");
 
   logger.info("Seeding tax regions...");
-  await createTaxRegionsWorkflow(container).run({
-    input: countries.map((country_code) => ({
-      country_code,
-      provider_id: "tp_system"
-    })),
-  });
+  try {
+    await createTaxRegionsWorkflow(container).run({
+      input: countries.map((country_code) => ({
+        country_code,
+        provider_id: "tp_system",
+      })),
+    });
+  } catch (err) {
+    // Ignore errors if tax regions already exist
+    logger.warn("Skipping tax region creation: " + err.message);
+  }
   logger.info("Finished seeding tax regions.");
 
   logger.info("Seeding stock location data...");
@@ -314,19 +331,19 @@ export default async function seedDemoData({ container }: ExecArgs) {
     input: {
       product_categories: [
         {
-          name: "Shirts",
+          name: "Modules",
           is_active: true,
         },
         {
-          name: "Sweatshirts",
+          name: "Accessories",
           is_active: true,
         },
         {
-          name: "Pants",
+          name: "Hardware",
           is_active: true,
         },
         {
-          name: "Merch",
+          name: "Software",
           is_active: true,
         },
       ],
@@ -337,28 +354,19 @@ export default async function seedDemoData({ container }: ExecArgs) {
     input: {
       products: [
         {
-          title: "Medusa T-Shirt",
+          title: "VinTel OBD Module",
           category_ids: [
-            categoryResult.find((cat) => cat.name === "Shirts")!.id,
+            categoryResult.find((cat) => cat.name === "Modules")!.id,
           ],
           description:
-            "Reimagine the feeling of a classic T-shirt. With our cotton T-shirts, everyday essentials no longer have to be ordinary.",
-          handle: "t-shirt",
+            "VinTel OBD-II diagnostic module enabling real-time vehicle diagnostics and data collection.",
+          handle: "vintel-obd-module",
           weight: 400,
           status: ProductStatus.PUBLISHED,
           shipping_profile_id: shippingProfile.id,
           images: [
             {
-              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/tee-black-front.png",
-            },
-            {
-              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/tee-black-back.png",
-            },
-            {
-              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/tee-white-front.png",
-            },
-            {
-              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/tee-white-back.png",
+              url: "https://via.placeholder.com/640?text=VinTel+OBD+Module",
             },
           ],
           options: [
@@ -524,22 +532,19 @@ export default async function seedDemoData({ container }: ExecArgs) {
           ],
         },
         {
-          title: "Medusa Sweatshirt",
+          title: "VinTel Tablet Display",
           category_ids: [
-            categoryResult.find((cat) => cat.name === "Sweatshirts")!.id,
+            categoryResult.find((cat) => cat.name === "Accessories")!.id,
           ],
           description:
-            "Reimagine the feeling of a classic sweatshirt. With our cotton sweatshirt, everyday essentials no longer have to be ordinary.",
-          handle: "sweatshirt",
+            "VinTel tablet display provides real-time analytics and user interface for vehicle diagnostics.",
+          handle: "vintel-tablet-display",
           weight: 400,
           status: ProductStatus.PUBLISHED,
           shipping_profile_id: shippingProfile.id,
           images: [
             {
-              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/sweatshirt-vintage-front.png",
-            },
-            {
-              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/sweatshirt-vintage-back.png",
+              url: "https://via.placeholder.com/640?text=VinTel+Tablet+Display",
             },
           ],
           options: [
@@ -625,22 +630,19 @@ export default async function seedDemoData({ container }: ExecArgs) {
           ],
         },
         {
-          title: "Medusa Sweatpants",
+          title: "VinTel Rugged Cable",
           category_ids: [
-            categoryResult.find((cat) => cat.name === "Pants")!.id,
+            categoryResult.find((cat) => cat.name === "Hardware")!.id,
           ],
           description:
-            "Reimagine the feeling of classic sweatpants. With our cotton sweatpants, everyday essentials no longer have to be ordinary.",
-          handle: "sweatpants",
+            "Heavy-duty cable designed for reliable connections in harsh automotive environments.",
+          handle: "vintel-rugged-cable",
           weight: 400,
           status: ProductStatus.PUBLISHED,
           shipping_profile_id: shippingProfile.id,
           images: [
             {
-              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/sweatpants-gray-front.png",
-            },
-            {
-              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/sweatpants-gray-back.png",
+              url: "https://via.placeholder.com/640?text=VinTel+Rugged+Cable",
             },
           ],
           options: [
@@ -726,22 +728,19 @@ export default async function seedDemoData({ container }: ExecArgs) {
           ],
         },
         {
-          title: "Medusa Shorts",
+          title: "VinTel Diagnostic Software",
           category_ids: [
-            categoryResult.find((cat) => cat.name === "Merch")!.id,
+            categoryResult.find((cat) => cat.name === "Software")!.id,
           ],
           description:
-            "Reimagine the feeling of classic shorts. With our cotton shorts, everyday essentials no longer have to be ordinary.",
-          handle: "shorts",
+            "Comprehensive diagnostic software unlocking advanced data insights for your vehicles.",
+          handle: "vintel-diagnostic-software",
           weight: 400,
           status: ProductStatus.PUBLISHED,
           shipping_profile_id: shippingProfile.id,
           images: [
             {
-              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/shorts-vintage-front.png",
-            },
-            {
-              url: "https://medusa-public-images.s3.eu-west-1.amazonaws.com/shorts-vintage-back.png",
+              url: "https://via.placeholder.com/640?text=VinTel+Diagnostic+Software",
             },
           ],
           options: [
